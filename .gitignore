@@ -1,0 +1,25 @@
+# Java
+server/target/
+*.class
+*.jar
+
+# Python
+ai/.venv/
+__pycache__/
+*.pyc
+
+# 前端
+web/node_modules/
+web/dist/
+
+# 环境
+.env
+
+# 数据
+data/
+uploads/*
+!uploads/.gitkeep
+
+# IDE
+.idea/
+.vscode/
