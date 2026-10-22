@@ -1,0 +1,33 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: mirror-server
+  datasource:
+    url: jdbc:mysql://localhost:3306/mirror?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: mirror
+    password: mirror123
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+springdoc:
+  swagger-ui:
+    path: /swagger
+
+mirror:
+  ai:
+    base-url: http://127.0.0.1:8000
+    token: dev-token-change-me
+    timeout-ms: 90000
+  jwt:
+    secret: mirror-dev-secret-please-change-in-production
+    expire-hours: 72
