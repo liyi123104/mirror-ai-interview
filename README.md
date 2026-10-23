@@ -51,7 +51,20 @@
 
 ## 快速开始
 
-### 方式一：本机三终端（开发用）
+### 方式零：一条命令（推荐）
+
+```powershell
+cd "E:\AI Full-Stack Engineer\mirror"
+powershell -ExecutionPolicy Bypass -File scripts\start-all.ps1 -WithWeb
+```
+
+它会依次检查 MySQL、拉起 AI（守护模式，挂了自动重启）、拉起 Java、拉起前端，
+全部健康检查通过后打印入口地址（前端固定从 **5180** 起，避开本机被占用的 5173）。
+按 `Ctrl+C` 一起停掉。日志在 `logs\` 下。
+
+参数：`-WithWeb` 连前端一起起；`-Fresh` 先把占用 8001/8080 的进程杀掉。
+
+### 方式一：本机三终端（手动）
 
 ```powershell
 # 终端 1：MySQL（已装则跳过）
@@ -69,10 +82,10 @@ mvn spring-boot:run
 # 终端 4：前端
 cd web
 npm install
-npm run dev
+npm run dev -- --port 5180 --host 127.0.0.1
 ```
 
-打开 `http://localhost:5173`（被占用时 Vite 会自动换端口，看终端输出）。
+打开 `http://127.0.0.1:5180`（5180 被占时 Vite 会自动顺延，看终端输出）。
 
 数据库初始化：`mirror` 库 + `server/src/main/resources/db/schema.sql`。
 
