@@ -1,0 +1,51 @@
+services:
+  mysql:
+    image: mysql:8
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: mirror
+      MYSQL_USER: mirror
+      MYSQL_PASSWORD: mirror123
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+      - ./server/src/main/resources/db/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-umirror", "-pmirror123"]
+      interval: 10s
+      retries: 8
+      start_period: 30s
+
+  ai:
+    build: ./ai
+    environment:
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+      MODEL_MAIN: ${MODEL_MAIN:-deepseek-chat}
+      # 云服务器上没有 Ollama 就留空，Python 会自动跳过降级
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN}
+    restart: always
+
+  server:
+    build: ./server
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/mirror?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      SPRING_DATASOURCE_USERNAME: mirror
+      SPRING_DATASOURCE_PASSWORD: mirror123
+      MIRROR_AI_BASE_URL: http://ai:8000
+      MIRROR_AI_TOKEN: ${INTERNAL_TOKEN}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      ai:
+        condition: service_started
+    restart: always
+
+  web:
+    build: ./web
+    ports:
+      - "80:80"
+    depends_on:
+      - server
+    restart: always

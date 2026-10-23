@@ -5,9 +5,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mirror.client.AiClient;
 import com.mirror.common.BizException;
+import com.mirror.entity.CostLog;
 import com.mirror.entity.InterviewSession;
 import com.mirror.entity.Report;
 import com.mirror.entity.Turn;
+import com.mirror.mapper.CostLogMapper;
 import com.mirror.mapper.InterviewSessionMapper;
 import com.mirror.mapper.ReportMapper;
 import com.mirror.mapper.TurnMapper;
@@ -31,6 +33,7 @@ public class ReportService {
     private final InterviewSessionMapper sessionMapper;
     private final TurnMapper turnMapper;
     private final ReportMapper reportMapper;
+    private final CostLogMapper costLogMapper;
     private final AiClient ai;
     private final ObjectMapper json = new ObjectMapper();
 
@@ -59,8 +62,9 @@ public class ReportService {
 
         // 八题串行要四十秒，并发只要几秒
         long begin = System.currentTimeMillis();
+        List<Map<String, Object>> usageSink = java.util.Collections.synchronizedList(new ArrayList<>());
         List<CompletableFuture<Map<String, Object>>> futures = questions.stream()
-                .map(q -> CompletableFuture.supplyAsync(() -> buildItem(sessionId, q)))
+                .map(q -> CompletableFuture.supplyAsync(() -> buildItem(sessionId, q, usageSink)))
                 .toList();
 
         List<Map<String, Object>> items = new ArrayList<>();
@@ -69,6 +73,9 @@ public class ReportService {
         }
         log.info("复盘生成完成 session={} 题数={} 用时={}ms",
                 sessionId, items.size(), System.currentTimeMillis() - begin);
+
+        // 复盘也是花钱的，一样要记成本
+        recordUsage(sessionId, "report", usageSink);
 
         double total = questions.stream()
                 .mapToDouble(q -> q.getScore() == null ? 3 : q.getScore())
@@ -135,7 +142,8 @@ public class ReportService {
         return out;
     }
 
-    private Map<String, Object> buildItem(String sessionId, Turn q) {
+    private Map<String, Object> buildItem(String sessionId, Turn q,
+                                          List<Map<String, Object>> usageSink) {
         String answer = findAnswer(sessionId, q.getSeq());
         int score = q.getScore() == null ? 3 : q.getScore();
 
@@ -145,6 +153,14 @@ public class ReportService {
                     "basedOn", q.getBasedOn() == null ? "" : q.getBasedOn(),
                     "answer", answer,
                     "score", score));
+
+            JsonNode usage = data.path("usage");
+            if (!usage.isMissingNode()) {
+                usageSink.add(Map.of(
+                        "tokensIn", usage.path("tokensIn").asInt(),
+                        "tokensOut", usage.path("tokensOut").asInt(),
+                        "cost", usage.path("cost").asDouble()));
+            }
 
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("seq", q.getSeq());
@@ -168,6 +184,26 @@ public class ReportService {
             item.put("betterAnswer", "");
             return item;
         }
+    }
+
+    private void recordUsage(String sessionId, String scene,
+                             List<Map<String, Object>> sink) {
+        if (sink.isEmpty()) {
+            return;
+        }
+
+        int tin = sink.stream().mapToInt(m -> (int) m.get("tokensIn")).sum();
+        int tout = sink.stream().mapToInt(m -> (int) m.get("tokensOut")).sum();
+        double cost = sink.stream().mapToDouble(m -> (double) m.get("cost")).sum();
+
+        CostLog log = new CostLog();
+        log.setSessionId(sessionId);
+        log.setScene(scene);
+        log.setTokensIn(tin);
+        log.setTokensOut(tout);
+        log.setCost(Math.round(cost * 1_000_000) / 1_000_000.0);
+        log.setCreatedAt(LocalDateTime.now());
+        costLogMapper.insert(log);
     }
 
     /** 题目在 seq，回答在 seq + 1。 */
