@@ -95,7 +95,9 @@ public class InterviewService {
                     "question", s.getLastQuestion() == null ? "" : s.getLastQuestion(),
                     "answer", answer,
                     "dimensions", scoreDimensions()));
-            updateLatestScore(sessionId, (int) Math.round(scoreData.path("total").asDouble(3.0)));
+            updateLatestScore(sessionId,
+                    (int) Math.round(scoreData.path("total").asDouble(3.0)),
+                    scoreData.path("dimensions"));
             recordCost(sessionId, "score", scoreData);
         } catch (Exception e) {
             log.warn("评分失败，本题不计分：{}", e.getMessage());
@@ -210,7 +212,7 @@ public class InterviewService {
     }
 
     /** 把分数写到“刚答的那道题”上：最后一条 interviewer 记录。 */
-    private void updateLatestScore(String sessionId, int score) {
+    private void updateLatestScore(String sessionId, int score, JsonNode dimensions) {
         Turn last = turnMapper.selectOne(new LambdaQueryWrapper<Turn>()
                 .eq(Turn::getSessionId, sessionId)
                 .eq(Turn::getRole, "interviewer")
@@ -219,6 +221,13 @@ public class InterviewService {
 
         if (last != null) {
             last.setScore(score);
+            if (dimensions != null && !dimensions.isMissingNode() && !dimensions.isNull()) {
+                try {
+                    last.setDimensionsJson(json.writeValueAsString(dimensions));
+                } catch (Exception e) {
+                    log.warn("维度分序列化失败：{}", e.getMessage());
+                }
+            }
             turnMapper.updateById(last);
         }
     }

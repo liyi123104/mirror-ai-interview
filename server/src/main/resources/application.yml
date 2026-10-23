@@ -28,8 +28,8 @@ mirror:
     base-url: http://127.0.0.1:8001
     token: dev-token-change-me
     timeout-ms: 90000
-    # 每题评分用哪几个维度：维度越多越准也越贵
-    score-dimensions: 技术深度,岗位匹配
+    # 每题评分用哪几个维度：四维并发打，慢了就砍成两维
+    score-dimensions: 技术深度,逻辑结构,表达清晰,岗位匹配
   jwt:
     secret: mirror-dev-secret-please-change-in-production
     expire-hours: 72

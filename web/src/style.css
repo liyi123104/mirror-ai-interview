@@ -1,0 +1,8 @@
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+  background: #f7f8fa;
+  color: #1f2328;
+}
+.page { max-width: 900px; margin: 0 auto; padding: 24px 16px; }

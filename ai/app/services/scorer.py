@@ -8,6 +8,7 @@
 
 import os
 import re
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from app.services.llm import chat_json
@@ -20,6 +21,8 @@ USE_KEYPOINTS = os.getenv("SCORE_KEYPOINTS", "1") == "1"
 USE_EVIDENCE = os.getenv("SCORE_EVIDENCE", "1") == "1"
 # 正常情况下必须保持 0；只有做“温度有没有影响”的对比实验时才调大
 TEMPERATURE = float(os.getenv("SCORE_TEMPERATURE", "0"))
+# 四维同时打几个：并发太高容易被限流
+SCORE_WORKERS = int(os.getenv("SCORE_WORKERS", "4"))
 
 _rubric_cache: str | None = None
 _STEPS_RE = re.compile(r"<!--STEPS-->.*?<!--/STEPS-->\s*", re.S)
@@ -78,26 +81,28 @@ def validate_evidence(evidence: str, answer: str) -> bool:
 
 
 def score_answer(question: str, answer: str, dimensions: list[str] | None = None) -> dict:
+    """四个维度并发打分，再把每个维度的两次结果合成一个分。
+
+    为什么要并发：四维双评是 8 次调用，串行要十几秒，并发后 3–5 秒。
+    """
     dims = dimensions or DIMENSIONS
-    results = []
-    total_cost = 0.0
-    tokens_in = 0
-    tokens_out = 0
+    workers = max(1, min(len(dims), SCORE_WORKERS))
 
-    def call() -> dict:
-        nonlocal total_cost, tokens_in, tokens_out
-        r = score_once(question, answer, dim)  # type: ignore[name-defined]
-        total_cost += r["usage"].cost
-        tokens_in += r["usage"].tokens_in
-        tokens_out += r["usage"].tokens_out
-        return r
+    def score_dim(dim: str) -> dict:
+        cost = 0.0
+        tin = 0
+        tout = 0
 
-    for dim in dims:
+        def call() -> dict:
+            nonlocal cost, tin, tout
+            r = score_once(question, answer, dim)
+            cost += r["usage"].cost
+            tin += r["usage"].tokens_in
+            tout += r["usage"].tokens_out
+            return r
+
         s1 = call()
-        if USE_DOUBLE:
-            s2 = call()
-        else:
-            s2 = s1
+        s2 = call() if USE_DOUBLE else s1
 
         a, b = s1["score"], s2["score"]
         diff = abs(a - b)
@@ -118,7 +123,7 @@ def score_answer(question: str, answer: str, dimensions: list[str] | None = None
                 and not validate_evidence(s2["evidence"], answer):
             confidence = "low"
 
-        results.append({
+        return {
             "dimension": dim,
             "score": final,
             "confidence": confidence,
@@ -126,7 +131,17 @@ def score_answer(question: str, answer: str, dimensions: list[str] | None = None
             "evidence": s1["evidence"],
             "raw": [a, b],
             "diff": diff,
-        })
+            "_cost": cost,
+            "_in": tin,
+            "_out": tout,
+        }
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        results = list(pool.map(score_dim, dims))
+
+    total_cost = sum(r.pop("_cost") for r in results)
+    tokens_in = sum(r.pop("_in") for r in results)
+    tokens_out = sum(r.pop("_out") for r in results)
 
     total = round(sum(r["score"] for r in results) / len(results), 2)
 

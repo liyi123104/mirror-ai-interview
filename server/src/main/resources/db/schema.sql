@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS turn (
     dimension   VARCHAR(32),
     depth       INT,
     score       INT,
+    dimensions_json TEXT COMMENT '各维度得分 JSON',
     tokens_in   INT,
     tokens_out  INT,
     cost        DOUBLE,

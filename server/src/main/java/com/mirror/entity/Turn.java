@@ -37,6 +37,9 @@ public class Turn {
     /** 本轮评分 */
     private Integer score;
 
+    /** 各维度得分（JSON），报告页雷达图用 */
+    private String dimensionsJson;
+
     private Integer tokensIn;
 
     private Integer tokensOut;

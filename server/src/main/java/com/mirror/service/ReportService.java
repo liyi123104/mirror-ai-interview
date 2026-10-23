@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -83,16 +84,55 @@ public class ReportService {
                 .limit(3)
                 .toList();
 
+        List<Map<String, Object>> dimensions = dimensionAverages(questions);
+
         Report r = new Report();
         r.setSessionId(sessionId);
         r.setTotal(total);
         r.setVerdict(verdict);
+        r.setDimensionsJson(writeJson(dimensions));
         r.setItemsJson(writeJson(items));
         r.setNextStepsJson(writeJson(nextSteps));
         r.setCreatedAt(LocalDateTime.now());
         reportMapper.insert(r);
 
         return toMap(r);
+    }
+
+    /** 雷达图的数据来源：把每题的各维度分按维度取平均。 */
+    private List<Map<String, Object>> dimensionAverages(List<Turn> questions) {
+        Map<String, Double> sum = new LinkedHashMap<>();
+        Map<String, Integer> count = new HashMap<>();
+
+        for (Turn q : questions) {
+            if (q.getDimensionsJson() == null || q.getDimensionsJson().isBlank()) {
+                continue;
+            }
+            try {
+                JsonNode arr = json.readTree(q.getDimensionsJson());
+                for (JsonNode d : arr) {
+                    String name = d.path("dimension").asText("");
+                    if (name.isBlank()) {
+                        continue;
+                    }
+                    sum.merge(name, d.path("score").asDouble(0), Double::sum);
+                    count.merge(name, 1, Integer::sum);
+                }
+            } catch (Exception e) {
+                log.warn("维度分解析失败 seq={}", q.getSeq());
+            }
+        }
+
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Map.Entry<String, Double> e : sum.entrySet()) {
+            int n = count.getOrDefault(e.getKey(), 1);
+            double avg = Math.round(e.getValue() / n * 100) / 100.0;
+            Map<String, Object> d = new LinkedHashMap<>();
+            d.put("name", e.getKey());
+            d.put("score", avg);
+            out.add(d);
+        }
+        return out;
     }
 
     private Map<String, Object> buildItem(String sessionId, Turn q) {
@@ -180,6 +220,7 @@ public class ReportService {
         m.put("sessionId", r.getSessionId());
         m.put("total", r.getTotal());
         m.put("verdict", r.getVerdict());
+        m.put("dimensions", readJson(r.getDimensionsJson(), List.class));
         m.put("items", readJson(r.getItemsJson(), List.class));
         m.put("nextSteps", readJson(r.getNextStepsJson(), List.class));
         return m;
