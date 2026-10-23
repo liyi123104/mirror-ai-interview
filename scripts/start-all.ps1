@@ -1,24 +1,26 @@
 ﻿# 面镜 · 一键启动
 #
 # 用法：
-#   powershell -ExecutionPolicy Bypass -File scripts\start-all.ps1              # 起 AI(8001) + Java(8080)，提示你去起前端
+#   powershell -ExecutionPolicy Bypass -File scripts\start-all.ps1              # 起 AI + Java，提示你去起前端
 #   powershell -ExecutionPolicy Bypass -File scripts\start-all.ps1 -WithWeb     # 连前端一起起
-#   powershell -ExecutionPolicy Bypass -File scripts\start-all.ps1 -Fresh       # 先把占用 8001/8080 的进程杀掉再起
+#   powershell -ExecutionPolicy Bypass -File scripts\start-all.ps1 -Fresh       # 先把占用 AI/Java 端口的进程杀掉再起
 #
-# 说明：脚本会一直前台运行，按 Ctrl+C 停止它启动的服务；日志在 logs\ 下。
-#      如果 Ctrl+C 后端口还占着，再跑一次 scripts\stop-all.ps1。
+# 端口统一在 scripts\ports.ps1 里配置（默认 AI 8000 / Java 8080 / 前端 5180）。
+# 脚本会一直前台运行，按 Ctrl+C 停止它启动的服务；日志在 logs\ 下。
 param(
     [switch]$WithWeb,
     [switch]$Fresh
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "ports.ps1")
+
 $root      = Split-Path -Parent $PSScriptRoot
 $logDir    = Join-Path $root "logs"
 $stateFile = Join-Path $logDir "run.json"
-$aiDir  = Join-Path $root "ai"
-$srvDir = Join-Path $root "server"
-$webDir = Join-Path $root "web"
+$aiDir     = Join-Path $root "ai"
+$srvDir    = Join-Path $root "server"
+$webDir    = Join-Path $root "web"
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 
 $started = @()
@@ -69,15 +71,15 @@ Say "  [OK] MySQL 3306 在线" "Green"
 
 # ---------- 1. 端口检查 ----------
 if ($Fresh) {
-    foreach ($p in 8001, 8080) {
-        if (Port-Busy $p) { Say "  -Fresh：杀掉占用 $p 的进程" "Yellow"; Kill-Port $p; Start-Sleep -Seconds 1 }
+    foreach ($p in $AiPort, $JavaPort) {
+        if (Port-Busy $p) { Say ("  -Fresh：杀掉占用 {0} 的进程" -f $p) "Yellow"; Kill-Port $p; Start-Sleep -Seconds 1 }
     }
 }
 
 # ---------- 2. Python AI 服务 ----------
 $aiProc = $null
-if (Port-Busy 8001) {
-    Say "  [SKIP] 8001 已有服务在跑（不是本脚本起的，Ctrl+C 不会停它）" "Yellow"
+if (Port-Busy $AiPort) {
+    Say ("  [SKIP] {0} 已有服务在跑（不是本脚本起的，Ctrl+C 不会停它）" -f $AiPort) "Yellow"
 } else {
     $py = Join-Path $aiDir ".venv\Scripts\python.exe"
     if (-not (Test-Path $py)) { Say "找不到虚拟环境：$py（先建好 venv）" "Red"; exit 1 }
@@ -85,7 +87,7 @@ if (Port-Busy 8001) {
     $aiOut = Join-Path $logDir "ai.watch.out.log"
     $aiErr = Join-Path $logDir "ai.watch.err.log"
     $watch = Join-Path $PSScriptRoot "watch-ai.ps1"
-    Say "启动 Python AI 服务（8001，守护模式：挂了 3 秒内自动拉起）…"
+    Say ("启动 Python AI 服务（{0}，守护模式：挂了 3 秒内自动拉起）…" -f $AiPort)
 
     # 走 watch-ai.ps1 而不是直接 uvicorn：
     # 有些环境（杀软/沙箱/控制台关闭）会把 python 子进程静默回收，
@@ -96,7 +98,7 @@ if (Port-Busy 8001) {
         -RedirectStandardOutput $aiOut -RedirectStandardError $aiErr
     $started += $aiProc
 
-    if (-not (Wait-Health "http://127.0.0.1:8001/ai/health" "Python AI" 40 $aiErr)) {
+    if (-not (Wait-Health "$AiBaseUrl/ai/health" "Python AI" 40 $aiErr)) {
         Say "Python 没起来，先修这里，Java 起来了也没用。日志：$aiErr 和 ai\logs\ai.watch.log" "Red"
         exit 1
     }
@@ -104,8 +106,8 @@ if (Port-Busy 8001) {
 
 # ---------- 3. Java ----------
 $javaProc = $null
-if (Port-Busy 8080) {
-    Say "  [SKIP] 8080 已有服务在跑（不是本脚本起的，Ctrl+C 不会停它）" "Yellow"
+if (Port-Busy $JavaPort) {
+    Say ("  [SKIP] {0} 已有服务在跑（不是本脚本起的，Ctrl+C 不会停它）" -f $JavaPort) "Yellow"
 } else {
     $mvn = (Get-Command mvn.cmd -ErrorAction SilentlyContinue).Source
     if (-not $mvn) { $mvn = "C:\apache-maven-3.9.9\bin\mvn.cmd" }
@@ -113,15 +115,15 @@ if (Port-Busy 8080) {
 
     $srvOut = Join-Path $logDir "server.out.log"
     $srvErr = Join-Path $logDir "server.err.log"
-    Say "启动 Java（8080）…"
+    Say ("启动 Java（{0}）…" -f $JavaPort)
     $javaProc = Start-Process -FilePath $env:ComSpec `
         -ArgumentList "/c", "`"$mvn`" -o spring-boot:run" `
         -WorkingDirectory $srvDir -NoNewWindow -PassThru `
         -RedirectStandardOutput $srvOut -RedirectStandardError $srvErr
     $started += $javaProc
 
-    if (-not (Wait-Health "http://localhost:8080/api/health" "Java" 100 $srvOut)) {
-        Say "Java 没起来。常见原因：MySQL 账号密码不对 / 8080 被占 / JDK 不是 21。" "Red"
+    if (-not (Wait-Health "$JavaBaseUrl/api/health" "Java" 100 $srvOut)) {
+        Say ("Java 没起来。常见原因：MySQL 账号密码不对 / {0} 被占 / JDK 不是 21。" -f $JavaPort) "Red"
         Say "完整日志：$srvOut 和 $srvErr" "Red"
         exit 1
     }
@@ -131,16 +133,13 @@ if (Port-Busy 8080) {
 $webProc = $null
 $webUrl = ""
 if ($WithWeb) {
-    if ((Port-Busy 5173) -or (Port-Busy 5174) -or (Port-Busy 5175) -or (Port-Busy 5176)) {
-        Say "  [提示] 5173–5176 里有端口被别的项目占着，Vite 会自己顺延，下面读它打印的真实地址" "Yellow"
-    }
     $webOut = Join-Path $logDir "web.out.log"
     $webErr = Join-Path $logDir "web.err.log"
-    Say "启动前端（Vite，5180 起）…"
-    # 5173 常被别的项目占着（还有一个只监听 IPv4 的同端口服务），
-    # 所以这里固定从 5180 起、只绑 127.0.0.1；5180 忙了 Vite 会自己顺延。
+    Say ("启动前端（Vite，{0} 起）…" -f $WebPort)
+    # 5173 常被别的项目占着，所以从 ports.ps1 的 $WebPort 起、只绑 127.0.0.1；
+    # 被占时 Vite 会自己顺延，下面从日志里读真实地址。
     $webProc = Start-Process -FilePath $env:ComSpec `
-        -ArgumentList "/c", "npm run dev -- --port 5180 --host 127.0.0.1" `
+        -ArgumentList "/c", "npm run dev -- --port $WebPort --host 127.0.0.1" `
         -WorkingDirectory $webDir -NoNewWindow -PassThru `
         -RedirectStandardOutput $webOut -RedirectStandardError $webErr
     $started += $webProc
@@ -165,13 +164,13 @@ if ($WithWeb) {
 # ---------- 5. 汇总 ----------
 Say ""
 Say "================ 都起来了 ================" "Cyan"
-Say ("  Python AI : http://127.0.0.1:8001/docs")
-Say ("  Java      : http://localhost:8080/swagger")
+Say ("  Python AI : {0}/docs" -f $AiBaseUrl)
+Say ("  Java      : {0}/swagger" -f $JavaBaseUrl)
 if ($webUrl) { Say ("  打开页面  : {0}" -f $webUrl) "Green" }
 elseif (-not $WithWeb) {
     Say "  前端还没起，另开一个终端："
-    Say '    cd "E:\AI Full-Stack Engineer\mirror\web"; npm run dev -- --port 5180 --host 127.0.0.1' "Yellow"
-    Say "    （终端里 Local: 那一行就是入口；5180 被占会自动顺延）"
+    Say ("    cd `"E:\AI Full-Stack Engineer\mirror\web`"; npm run dev -- --port {0} --host 127.0.0.1" -f $WebPort) "Yellow"
+    Say ("    （终端里 Local: 那一行就是入口；{0} 被占会自动顺延）" -f $WebPort)
 }
 Say ("  日志目录  : {0}" -f $logDir)
 Say "  按 Ctrl+C 停止，或双击 stop.bat。" "Yellow"
@@ -180,10 +179,12 @@ Say "==========================================" "Cyan"
 # 把这次启动的进程记下来，stop-all.ps1 靠它精确杀进程树
 $state = [ordered]@{
     startedAt  = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
-    aiWatchPid = if ($aiProc)  { $aiProc.Id }  else { 0 }
+    aiWatchPid = if ($aiProc)   { $aiProc.Id }   else { 0 }
     javaPid    = if ($javaProc) { $javaProc.Id } else { 0 }
-    webPid     = if ($webProc) { $webProc.Id } else { 0 }
+    webPid     = if ($webProc)  { $webProc.Id }  else { 0 }
     webUrl     = $webUrl
+    aiPort     = $AiPort
+    javaPort   = $JavaPort
 }
 try {
     $state | ConvertTo-Json | Set-Content -Path $stateFile -Encoding UTF8
@@ -200,11 +201,11 @@ try {
         $items = @()
         $down = 0
         try {
-            $a = Invoke-WebRequest "http://127.0.0.1:8001/ai/health" -UseBasicParsing -TimeoutSec 3
+            $a = Invoke-WebRequest "$AiBaseUrl/ai/health" -UseBasicParsing -TimeoutSec 3
             $items += if ($a.StatusCode -eq 200) { "AI ok" } else { "AI ?" }
         } catch { $items += "AI 挂了"; $down++ }
         try {
-            $j = Invoke-WebRequest "http://localhost:8080/api/health" -UseBasicParsing -TimeoutSec 3
+            $j = Invoke-WebRequest "$JavaBaseUrl/api/health" -UseBasicParsing -TimeoutSec 3
             $items += if ($j.StatusCode -eq 200) { "Java ok" } else { "Java ?" }
         } catch { $items += "Java 挂了"; $down++ }
 
@@ -226,11 +227,12 @@ try {
             Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
         }
     }
+
     # cmd 包了一层，java / node 子进程可能残留，按端口兜底
-    $ports = @(8001, 8080)
+    $ports = @($AiPort, $JavaPort)
     if ($webUrl -match ":(\d+)/?$") {
         $webPort = [int]$matches[1]
-        # 5173 是别的项目的地盘，绝不动；本项目的 Vite 从 5180 起
+        # 5173 是别的项目的地盘，绝不动；本项目的 Vite 从 $WebPort 起
         if ($webPort -ge 5174) { $ports += $webPort }
     }
     foreach ($port in $ports) {
@@ -238,12 +240,6 @@ try {
         foreach ($procId in ($conn.OwningProcess | Select-Object -Unique)) {
             Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
         }
-    }
-
-    # 守护进程可能又拉起了 uvicorn，再扫一遍 8001
-    $conn = Get-NetTCPConnection -LocalPort 8001 -State Listen -ErrorAction SilentlyContinue
-    foreach ($procId in ($conn.OwningProcess | Select-Object -Unique)) {
-        Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
     }
 
     Remove-Item $stateFile -Force -ErrorAction SilentlyContinue

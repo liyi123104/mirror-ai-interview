@@ -4,12 +4,16 @@
 #   powershell -ExecutionPolicy Bypass -File scripts\acceptance.ps1                     # 跑 1–8 条
 #   powershell -ExecutionPolicy Bypass -File scripts\acceptance.ps1 -DowngradeOnly      # 只跑第 9 条（先停掉 Python）
 #
-# 前提：MySQL 已启动，Python 8001、Java 8080 在跑
+# 前提：MySQL 已启动，AI 与 Java 都在跑（端口见 scripts\ports.ps1）
 param(
     [switch]$DowngradeOnly,
-    [string]$Base = "http://localhost:8080",
-    [string]$AiBase = "http://127.0.0.1:8001"
+    [string]$Base = "",
+    [string]$AiBase = ""
 )
+
+. (Join-Path $PSScriptRoot "ports.ps1")
+if (-not $Base)   { $Base = $JavaBaseUrl }
+if (-not $AiBase) { $AiBase = $AiBaseUrl }
 
 $pass = 0
 $fail = 0

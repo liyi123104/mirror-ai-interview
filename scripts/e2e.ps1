@@ -1,7 +1,10 @@
 ﻿# 面镜端到端脚本：注册 → 开始面试 → 连答八题（每题评分）→ 报告 → 成本
 # 用法：powershell -ExecutionPolicy Bypass -File scripts\e2e.ps1
-# 前提：MySQL、Python 8001、Java 8080 都在跑
-param([string]$Base = "http://localhost:8080")
+# 前提：MySQL 已启动，AI 与 Java 都在跑（端口见 scripts\ports.ps1）
+param([string]$Base = "")
+
+. (Join-Path $PSScriptRoot "ports.ps1")
+if (-not $Base) { $Base = $JavaBaseUrl }
 
 function Invoke-Api {
     param([string]$Method = "GET", [string]$Url, $Body = $null, [string]$Token = "")

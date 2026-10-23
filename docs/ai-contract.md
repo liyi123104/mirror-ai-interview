@@ -9,9 +9,9 @@
 | 编码 | UTF-8 |
 | 时间单位 | 毫秒 |
 
-> 本机开发说明：8000 端口被另一个项目占着，所以本地把 Python 跑在 **8001**，
-> Java 侧 `application.yml` 里的 `mirror.ai.base-url` 同步改成 `http://127.0.0.1:8001`。
-> 上线走 Docker 时再改回 8000。
+> 本机开发：AI 服务跑在 **8000**，和契约、Docker 内部端口一致。
+> 端口只在 `scripts/ports.ps1`（脚本侧）和 `server/src/main/resources/application.yml` 的
+> `mirror.ai.base-url`（Java 侧）两处配置，改的时候两边一起改。
 
 ## 统一响应
 

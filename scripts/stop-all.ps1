@@ -7,10 +7,12 @@
 # 做三件事：
 #   1. 按 start-all.ps1 写下的记录，杀掉它启动的三棵进程树
 #   2. 按命令行兜底，清掉上次没记录、或被杀后残留的进程（守护进程 / uvicorn / Java / Vite）
-#   3. 扫端口确认真的放开了（8001 / 8080 / 5174–5185）
+#   3. 扫端口确认真的放开了（AI / Java / 前端端口，见 ports.ps1）
 param([int[]]$ExtraPorts = @())
 
 $ErrorActionPreference = "SilentlyContinue"
+. (Join-Path $PSScriptRoot "ports.ps1")
+
 $root      = Split-Path -Parent $PSScriptRoot
 $stateFile = Join-Path $root "logs\run.json"
 $script:stopped = 0
@@ -73,7 +75,7 @@ if ($targets) {
 
 # ---------- 3. 按端口兜底 ----------
 # 5173 及以下留给别的项目，绝不碰
-$ports = @(8001, 8080) + (5174..5185) + $ExtraPorts
+$ports = @($AiPort, $JavaPort) + $WebPortRange + $ExtraPorts
 foreach ($port in ($ports | Select-Object -Unique)) {
     $conn = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
     foreach ($procId in ($conn.OwningProcess | Select-Object -Unique)) {

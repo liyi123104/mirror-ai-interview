@@ -56,10 +56,11 @@
 | 双击 | 作用 | 结果 |
 |---|---|---|
 | **`start.bat`** | 检查 MySQL → 起 AI（守护模式）→ 起 Java → 起前端 → 逐个健康检查 | 打印入口地址，窗口里每 15 秒一行状态 |
-| **`stop.bat`** | 按启动记录杀进程树，再按命令行/端口兜底 | 确认 8001/8080/5174–5185 全部放开 |
+| **`stop.bat`** | 按启动记录杀进程树，再按命令行/端口兜底 | 确认 8000/8080/5174–5185 全部放开 |
 
 细节：
 
+- 端口统一在 **`scripts/ports.ps1`** 里改（默认 AI 8000 / Java 8080 / 前端 5180），Java 侧同步改 `application.yml` 的 `mirror.ai.base-url`。
 - 前端固定从 **5180** 起，避开本机被占用的 5173；脚本会从 Vite 输出里读真实地址。
 - 关闭 start 的窗口 **不等于** 停服务（子进程会留着），要停就双击 `stop.bat` 或按 `Ctrl+C`。
 - `stop.bat` 不碰 5173 及以下端口，不会误杀别的项目。
@@ -73,7 +74,7 @@ powershell -ExecutionPolicy Bypass -File scripts\start-all.ps1 -WithWeb   # 起
 powershell -ExecutionPolicy Bypass -File scripts\stop-all.ps1             # 停
 ```
 
-参数：`-WithWeb` 连前端一起起；`-Fresh` 先把占用 8001/8080 的进程杀掉。
+参数：`-WithWeb` 连前端一起起；`-Fresh` 先把占用 AI/Java 端口的进程杀掉。
 日志都在 `logs\` 下（`ai.watch.*` / `server.out.log` / `web.out.log`）。
 
 ### 方式一：本机三终端（手动）
@@ -82,10 +83,10 @@ powershell -ExecutionPolicy Bypass -File scripts\stop-all.ps1             # 停
 # 终端 1：MySQL（已装则跳过）
 net start MySQL80
 
-# 终端 2：Python AI 服务（8001，因为本机 8000 被别的项目占了）
+# 终端 2：Python AI 服务（8000）
 cd ai
 .\.venv\Scripts\Activate.ps1
-uvicorn app.main:app --reload --port 8001
+uvicorn app.main:app --reload --port 8000
 
 # 终端 3：Java
 cd server

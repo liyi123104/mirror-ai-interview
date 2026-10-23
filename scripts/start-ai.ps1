@@ -1,11 +1,14 @@
-﻿# 启动 Python AI 服务（8001），后台运行，日志写 ai\logs
-# 用法：powershell -ExecutionPolicy Bypass -File scripts\start-ai.ps1
+﻿# 启动 Python AI 服务（后台运行，日志写 ai\logs）
+# 用法：powershell -ExecutionPolicy Bypass -File scripts\start-ai.ps1 [端口]
+#       端口不传就用 scripts\ports.ps1 里的 $AiPort
+. (Join-Path $PSScriptRoot "ports.ps1")
+
 $root = Split-Path -Parent $PSScriptRoot
 $ai = Join-Path $root "ai"
 $logDir = Join-Path $ai "logs"
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 
-$port = if ($args[0]) { $args[0] } else { 8001 }
+$port = if ($args[0]) { $args[0] } else { $AiPort }
 
 $running = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
 if ($running) {
