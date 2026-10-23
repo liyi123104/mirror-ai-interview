@@ -24,6 +24,8 @@ logs/
 data/
 uploads/*
 !uploads/.gitkeep
+# 数据库备份
+backups/
 
 # IDE
 .idea/

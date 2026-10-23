@@ -57,6 +57,33 @@ function Wait-Health([string]$url, [string]$name, [int]$seconds, [string]$logFil
 Say "面镜启动器" "Cyan"
 Say ("项目目录：{0}" -f $root)
 
+# ---------- 密钥：从根目录 .env 注入环境变量 ----------
+# 子进程（Java / Python）都继承这些变量，两边 INTERNAL_TOKEN 自然一致
+$envFile = Join-Path $root ".env"
+if (Test-Path $envFile) {
+    $loaded = 0
+    foreach ($line in Get-Content $envFile -Encoding UTF8) {
+        $t = $line.Trim()
+        if (-not $t -or $t.StartsWith("#")) { continue }
+        $i = $t.IndexOf("=")
+        if ($i -lt 1) { continue }
+        $k = $t.Substring(0, $i).Trim()
+        $v = $t.Substring($i + 1).Trim().Trim('"').Trim("'")
+        Set-Item -Path ("Env:" + $k) -Value $v -ErrorAction SilentlyContinue
+        $loaded++
+    }
+    Say ("  [OK] 已从 .env 载入 {0} 个变量" -f $loaded) "DarkGray"
+} else {
+    Say "  [提示] 没有 .env，用的是 application.yml 里的默认密钥；交付/上线前请 copy .env.example .env" "Yellow"
+}
+
+if ($env:INTERNAL_TOKEN -eq "dev-token-change-me") {
+    Say "  [提示] INTERNAL_TOKEN 还是默认值，本机没事，别带到公网" "Yellow"
+}
+if ($env:MIRROR_JWT_SECRET -eq "mirror-dev-secret-please-change-in-production") {
+    Say "  [提示] JWT 密钥还是默认值，换掉后所有人需要重新登录" "Yellow"
+}
+
 # ---------- 0. MySQL ----------
 if (-not (Port-Busy 3306)) {
     Say "MySQL 没在 3306 上，尝试启动服务 MySQL80 …" "Yellow"

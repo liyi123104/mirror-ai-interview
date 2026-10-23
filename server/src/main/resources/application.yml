@@ -1,13 +1,14 @@
 server:
-  port: 8080
+  port: ${MIRROR_PORT:8080}
 
 spring:
   application:
     name: mirror-server
   datasource:
-    url: jdbc:mysql://localhost:3306/mirror?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
-    username: mirror
-    password: mirror123
+    url: ${MIRROR_DB_URL:jdbc:mysql://localhost:3306/mirror?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    username: ${MIRROR_DB_USER:mirror}
+    # 生产环境务必用环境变量覆盖，不要用仓库里的默认值
+    password: ${MIRROR_DB_PASSWORD:mirror123}
     driver-class-name: com.mysql.cj.jdbc.Driver
   servlet:
     multipart:
@@ -22,14 +23,18 @@ mybatis-plus:
 springdoc:
   swagger-ui:
     path: /swagger
+  # 生产环境可以设成 ${MIRROR_SWAGGER_ENABLED:false} 关掉接口文档
+  api-docs:
+    enabled: ${MIRROR_SWAGGER_ENABLED:true}
 
 mirror:
   ai:
-    base-url: http://127.0.0.1:8000
-    token: dev-token-change-me
-    timeout-ms: 90000
+    base-url: ${MIRROR_AI_BASE_URL:http://127.0.0.1:8000}
+    # 与 Python 侧 INTERNAL_TOKEN 必须一致（start.bat 会从根目录 .env 注入同一个值）
+    token: ${INTERNAL_TOKEN:dev-token-change-me}
+    timeout-ms: ${MIRROR_AI_TIMEOUT_MS:90000}
     # 每题评分用哪几个维度：四维并发打，慢了就砍成两维
-    score-dimensions: 技术深度,逻辑结构,表达清晰,岗位匹配
+    score-dimensions: ${MIRROR_SCORE_DIMENSIONS:技术深度,逻辑结构,表达清晰,岗位匹配}
   jwt:
-    secret: mirror-dev-secret-please-change-in-production
-    expire-hours: 72
+    secret: ${MIRROR_JWT_SECRET:mirror-dev-secret-please-change-in-production}
+    expire-hours: ${MIRROR_JWT_EXPIRE_HOURS:72}

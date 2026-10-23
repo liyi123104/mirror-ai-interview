@@ -352,7 +352,16 @@ RUNS = [
      "cost_log 表查询；docs/eval-log.md 成本段"),
     ("2026-10-23 21:33", "TC-I01", "通过：收到 meta → delta×N → done",
      "logs/sse.out（curl -N 抓到的事件流）"),
-    ("待人工", "TC-I02/I03/I04/I05/I06/I07、TC-A04/A06/A07、TC-B03/B05、TC-C05、TC-E05",
+    ("2026-10-23 22:26", "TC-B02/B03/B05/B07/B08、TC-C05/C09、TC-D03/D07、TC-E08/E11、TC-F05/F06、TC-G07",
+     "通过 14 条，失败 0 条",
+     "scripts/test-cases-api.ps1；logs/test-cases-api.log"),
+    ("2026-10-23 22:27", "TC-A01/A02/A03、TC-B01/B04/B06、TC-C01/C03/C04、TC-E01/E03/E06/E07、TC-G01/G04",
+     "通过 9 条（补 @Valid 依赖后回归）",
+     "scripts/acceptance.ps1"),
+    ("2026-10-23 22:27", "TC-H01/H02（备份与日志轮转属于运维）",
+     "备份 438.5KB 成功；日志轮转 12MB→.1.log 验证通过",
+     "scripts/housekeeping.ps1 试跑"),
+    ("待人工", "TC-I02/I03/I04/I05/I06/I07、TC-A04/A06/A07、TC-E05",
      "未执行（需浏览器人工验证）", "按本文步骤在浏览器里点一遍，把结果填到 Excel 的「实际结果」列"),
 ]
 
@@ -431,6 +440,22 @@ def write_markdown() -> Path:
         lines.append("| {0} | {1} | {2} | {3} |".format(
             when, md_table_escape(scope), md_table_escape(result), md_table_escape(evidence)))
     lines.append("")
+    lines.append("## 本轮测试发现并修复的问题")
+    lines.append("")
+    lines.append("跑 `scripts/test-cases-api.ps1` 第一版时暴露了三个真实缺陷，都已修复并回归：")
+    lines.append("")
+    lines.append("| # | 现象 | 根因 | 修复 |")
+    lines.append("|---|---|---|---|")
+    lines.append("| 1 | 密码填 `123` 也能注册成功（TC-B03 失败） | `pom.xml` 缺 `spring-boot-starter-validation`，"
+                 "`@Valid`/`@NotBlank`/`@Size` 全部静默失效 | 补依赖，现在返回 `4001 password 长度要在 6 到 64 之间` |")
+    lines.append("| 2 | 上传 11MB 文件返回 `5000 服务异常：MaxUploadSizeExceededException` | 超限异常落到兜底 handler | "
+                 "加专用 handler，返回 `4002 文件不能超过 10MB` |")
+    lines.append("| 3 | 空文件上传返回 `4000`，与文件类错误的 4002 不一致 | Controller 用了默认业务码 | "
+                 "改成 `BizException(4002, …)` |")
+    lines.append("")
+    lines.append("修复后回归：`scripts/test-cases-api.ps1` **14/14 通过**，`scripts/acceptance.ps1` **9/9 通过**。")
+    lines.append("")
+
     lines.append("## 已知不覆盖 / 限制")
     lines.append("")
     lines.append("- **并发与压测**：只验证了单用户顺序流程，没有做 100 并发的压测（见 `docs/self-test.md` 第 17 题）。")

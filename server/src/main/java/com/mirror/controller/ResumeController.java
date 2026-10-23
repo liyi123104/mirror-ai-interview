@@ -20,7 +20,8 @@ public class ResumeController {
     @PostMapping("/upload")
     public ApiResponse<Map<String, Object>> upload(@RequestParam("file") MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw new com.mirror.common.BizException("请选择一份 PDF 文件");
+            // 文件类错误统一用 4002，和 AI 侧返回的 4002 保持一致
+            throw new com.mirror.common.BizException(4002, "请选择一份 PDF 文件");
         }
 
         JsonNode data = ai.parseResume(file);

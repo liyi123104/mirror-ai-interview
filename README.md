@@ -166,6 +166,9 @@ curl.exe -s http://localhost:8080/api/interview/<sid>/report -H "Authorization: 
 # 九步验收（1–8；第 9 条降级要先停 Python 再加 -DowngradeOnly）
 powershell -ExecutionPolicy Bypass -File scripts\acceptance.ps1
 
+# 接口级测试用例（14 条：认证/上传/题库/状态机/评分/报告）
+powershell -ExecutionPolicy Bypass -File scripts\test-cases-api.ps1
+
 # 完整一场：注册 → 八题 → 报告 → 成本
 powershell -ExecutionPolicy Bypass -File scripts\e2e.ps1
 
@@ -174,6 +177,9 @@ cd ai; python tools\check_embed.py
 
 # 评分一致性（10 条样本 × 3 轮）
 cd ai; python tools\eval_consistency.py
+
+# 数据库备份 + 日志轮转（可挂计划任务）
+powershell -ExecutionPolicy Bypass -File scripts\housekeeping.ps1
 ```
 
 ## 测试用例
@@ -183,10 +189,37 @@ cd ai; python tools\eval_consistency.py
 - 人读版：[`docs/test-cases.md`](docs/test-cases.md)
 - 执行记录版：[`docs/test-cases.xlsx`](docs/test-cases.xlsx)（带「实际结果 / 结论」列，可直接当测试记录填）
 - 同源生成脚本：`docs/gen_test_cases.py`（改用例改脚本，跑一次两份都更新）
+- 其中 **14 条已脚本化**：`scripts/test-cases-api.ps1`，一条命令跑完
+
+## 安全与隐私
+
+**密钥不能进代码库，也不能用默认值上线。**
+
+| 变量 | 作用 | 默认值（仅本机） |
+|---|---|---|
+| `INTERNAL_TOKEN` | Java ↔ Python 内部令牌，两边必须一致 | `dev-token-change-me` |
+| `MIRROR_JWT_SECRET` | 登录 JWT 签名密钥，≥32 位随机串 | 开发用固定串 |
+| `MIRROR_DB_PASSWORD` | 数据库密码 | `mirror123` |
+| `MIRROR_SWAGGER_ENABLED` | 生产环境关掉接口文档 | `true` |
+
+做法：`copy .env.example .env` 填好，`start.bat` 会自动读 `.env` 并注入给 Java / Python 两个进程；
+`.env` 已在 `.gitignore` 里。**如果默认值没换，Java 启动时会在日志里打红色 WARN**（`SecurityCheck`）。
+
+已经做的加固：
+
+- 所有账号密码、令牌、密钥都走环境变量，代码里只剩本机开发默认值
+- Nginx 加了 `X-Content-Type-Options` / `X-Frame-Options` / `Referrer-Policy` / `Permissions-Policy` / `CSP`，并关闭 `server_tokens`
+- 上传超限返回可读的 4002，不再抛 5000
+- 参数校验（`@Valid`）真正生效（补了缺失的 `spring-boot-starter-validation`）
+
+**隐私声明**：上传的简历 PDF 原文会被发到 **DeepSeek 第三方 API** 做结构化抽取和出题；
+服务端只持久化解析后的 JSON（姓名/技能/项目），不保存原始 PDF 文件。
+演示或试用请使用**虚构简历**，不要用真实身份证号、住址等敏感信息。
 
 ## 已知局限
 
 - **评分偏保守**：模型倾向给 3 分，两条人工 5 分的回答被压到 3–4 分（为人工平均差 0.6 的主要来源）。试过 few-shot 和硬规则，都会让另一些样本掉档，没有继续硬调（10 条样本容易过拟合）。
 - **维度分为 0 分的题不计入雷达图**：评分失败的题会跳过，不编数据。
 - **Ollama 降级只在 Windows 本机验证过**：云服务器上没有 7B 模型，线上会自动跳过。
-- **Docker 未在本机验证**：见上文。
+- **Docker 未在本机验证**：本机拉不到 Docker Hub，见上文。
+- **没有限流**：公开部署前应在 Nginx 加 `limit_req`，否则 `/api/interview/start` 可被刷成本。

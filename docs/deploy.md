@@ -53,7 +53,48 @@ docker compose start ai
 | Nginx 上传大小 | 已在 `web/nginx.conf` 里设 `client_max_body_size 20m`，否则 10MB 简历会 413 |
 | 流式被缓冲 | 已在 `/api/interview/` 上设 `proxy_buffering off`，否则追问会"卡十秒再整段蹦出" |
 
-## 三、常见故障
+## 三、上线前的安全清单
+
+这些不是可选项——不做就等于把默认口令和 API Key 一起发到公网。
+
+| # | 项 | 怎么做 |
+|---|---|---|
+| 1 | 换掉 JWT 密钥 | `.env` 里设 `MIRROR_JWT_SECRET=$(openssl rand -hex 32)`，换完所有人需重新登录 |
+| 2 | 换掉内部令牌 | `INTERNAL_TOKEN=$(openssl rand -hex 16)`，Java 与 Python 会自动读到同一个值 |
+| 3 | 换掉数据库密码 | `MIRROR_DB_PASSWORD=...`，compose 里的 mysql 环境变量同步改 |
+| 4 | 关掉接口文档 | `MIRROR_SWAGGER_ENABLED=false` |
+| 5 | 确认只有 80 暴露 | `docker compose ps` 的 PORTS 列 |
+| 6 | 加限流 | 在 `web/nginx.conf` 的 server 块加 `limit_req_zone` + `limit_req`，保护 `/api/interview/` |
+| 7 | 上 HTTPS | 用云厂商证书 + Nginx 443 配置，HTTP 301 跳转 |
+| 8 | 确认默认值已消失 | `docker compose logs server \| grep 安全` 应该没有 WARN |
+
+启动自检会把没换的默认值打成 WARN，看到这几行说明还没加固：
+
+```
+【安全】JWT 密钥还是默认值，任何人都能伪造登录态。
+【安全】内部令牌 INTERNAL_TOKEN 还是默认值…
+【安全】数据库密码还是默认的 mirror123…
+```
+
+## 四、备份与日志
+
+```bash
+# 容器里备份（宿主机执行）
+docker compose exec -T mysql mysqldump -umirror -pmirror123 --single-transaction mirror > backup-$(date +%F).sql
+
+# 宿主机本地部署时用脚本
+powershell -ExecutionPolicy Bypass -File scripts\housekeeping.ps1
+```
+
+`housekeeping.ps1` 做两件事：`mysqldump` 备份到 `backups/`（保留最近 7 天）、把超过 20MB 的日志轮转成 `*.1.log`。
+挂计划任务：
+
+```powershell
+schtasks /create /tn "MirrorHousekeeping" /sc daily /st 03:00 ^
+  /tr "powershell -NoProfile -ExecutionPolicy Bypass -File \"E:\AI Full-Stack Engineer\mirror\scripts\housekeeping.ps1\""
+```
+
+## 五、常见故障
 
 | 现象 | 原因 | 处理 |
 |---|---|---|

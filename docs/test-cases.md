@@ -174,7 +174,22 @@
 | 2026-10-23 21:0x | TC-D02/D05/D06/D08 | 通过：索引 size 0→4、重启后 Java 同步恢复、检索缓存穿透命中 | mysql cost_log 与 /ai/question/index/size 查询记录 |
 | 2026-10-23 21:xx | TC-H01/H02/H03 | 通过：question/score/report 三类成本入库；单场 0.18 元 | cost_log 表查询；docs/eval-log.md 成本段 |
 | 2026-10-23 21:33 | TC-I01 | 通过：收到 meta → delta×N → done | logs/sse.out（curl -N 抓到的事件流） |
-| 待人工 | TC-I02/I03/I04/I05/I06/I07、TC-A04/A06/A07、TC-B03/B05、TC-C05、TC-E05 | 未执行（需浏览器人工验证） | 按本文步骤在浏览器里点一遍，把结果填到 Excel 的「实际结果」列 |
+| 2026-10-23 22:26 | TC-B02/B03/B05/B07/B08、TC-C05/C09、TC-D03/D07、TC-E08/E11、TC-F05/F06、TC-G07 | 通过 14 条，失败 0 条 | scripts/test-cases-api.ps1；logs/test-cases-api.log |
+| 2026-10-23 22:27 | TC-A01/A02/A03、TC-B01/B04/B06、TC-C01/C03/C04、TC-E01/E03/E06/E07、TC-G01/G04 | 通过 9 条（补 @Valid 依赖后回归） | scripts/acceptance.ps1 |
+| 2026-10-23 22:27 | TC-H01/H02（备份与日志轮转属于运维） | 备份 438.5KB 成功；日志轮转 12MB→.1.log 验证通过 | scripts/housekeeping.ps1 试跑 |
+| 待人工 | TC-I02/I03/I04/I05/I06/I07、TC-A04/A06/A07、TC-E05 | 未执行（需浏览器人工验证） | 按本文步骤在浏览器里点一遍，把结果填到 Excel 的「实际结果」列 |
+
+## 本轮测试发现并修复的问题
+
+跑 `scripts/test-cases-api.ps1` 第一版时暴露了三个真实缺陷，都已修复并回归：
+
+| # | 现象 | 根因 | 修复 |
+|---|---|---|---|
+| 1 | 密码填 `123` 也能注册成功（TC-B03 失败） | `pom.xml` 缺 `spring-boot-starter-validation`，`@Valid`/`@NotBlank`/`@Size` 全部静默失效 | 补依赖，现在返回 `4001 password 长度要在 6 到 64 之间` |
+| 2 | 上传 11MB 文件返回 `5000 服务异常：MaxUploadSizeExceededException` | 超限异常落到兜底 handler | 加专用 handler，返回 `4002 文件不能超过 10MB` |
+| 3 | 空文件上传返回 `4000`，与文件类错误的 4002 不一致 | Controller 用了默认业务码 | 改成 `BizException(4002, …)` |
+
+修复后回归：`scripts/test-cases-api.ps1` **14/14 通过**，`scripts/acceptance.ps1` **9/9 通过**。
 
 ## 已知不覆盖 / 限制
 
