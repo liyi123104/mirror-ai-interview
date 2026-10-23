@@ -176,6 +176,14 @@ cd ai; python tools\check_embed.py
 cd ai; python tools\eval_consistency.py
 ```
 
+## 测试用例
+
+完整测试用例（**74 条**：P0 29 / P1 30 / P2 15，覆盖认证、解析、题库检索、状态机、评分、报告、成本、流式前端、降级容错）：
+
+- 人读版：[`docs/test-cases.md`](docs/test-cases.md)
+- 执行记录版：[`docs/test-cases.xlsx`](docs/test-cases.xlsx)（带「实际结果 / 结论」列，可直接当测试记录填）
+- 同源生成脚本：`docs/gen_test_cases.py`（改用例改脚本，跑一次两份都更新）
+
 ## 已知局限
 
 - **评分偏保守**：模型倾向给 3 分，两条人工 5 分的回答被压到 3–4 分（为人工平均差 0.6 的主要来源）。试过 few-shot 和硬规则，都会让另一些样本掉档，没有继续硬调（10 条样本容易过拟合）。
