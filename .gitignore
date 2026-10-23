@@ -11,6 +11,11 @@ __pycache__/
 # 前端
 web/node_modules/
 web/dist/
+node_modules/
+
+# 日志
+logs/
+*.log
 
 # 环境
 .env

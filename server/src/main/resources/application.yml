@@ -25,7 +25,7 @@ springdoc:
 
 mirror:
   ai:
-    base-url: http://127.0.0.1:8000
+    base-url: http://127.0.0.1:8001
     token: dev-token-change-me
     timeout-ms: 90000
   jwt:
