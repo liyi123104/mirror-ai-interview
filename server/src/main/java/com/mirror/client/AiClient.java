@@ -114,6 +114,27 @@ public class AiClient {
                 Map.of("query", query, "job", job, "topK", topK));
     }
 
+    /** 删题时把索引也删掉，不然检索还能搜到已经删掉的题。 */
+    public void removeQuestionIndex(String id) {
+        String traceId = UUID.randomUUID().toString().substring(0, 8);
+
+        try {
+            rest.delete()
+                    .uri("/ai/question/index/{id}", id)
+                    .header("X-Trace-Id", traceId)
+                    .retrieve()
+                    .body(String.class);
+        } catch (ResourceAccessException e) {
+            log.error("[{}] AI 服务无响应 /ai/question/index", traceId);
+            throw new AiUnavailableException("AI 服务无响应");
+        } catch (HttpClientErrorException e) {
+            throw new BizException(4002, detailOf(e.getResponseBodyAsString()));
+        } catch (Exception e) {
+            log.error("[{}] 索引删除异常", traceId, e);
+            throw new AiUnavailableException("索引删除失败");
+        }
+    }
+
     /** 文件上传要单独写，不能走 post()。 */
     public JsonNode parseResume(MultipartFile file) {
         String traceId = UUID.randomUUID().toString().substring(0, 8);

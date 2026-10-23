@@ -9,6 +9,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/question")
 @RequiredArgsConstructor
@@ -32,6 +35,16 @@ public class QuestionController {
     @GetMapping("/{id}")
     public ApiResponse<Question> get(@PathVariable String id) {
         return ApiResponse.ok(service.get(id));
+    }
+
+    /** 语义检索：走 Python 的向量索引 */
+    @GetMapping("/search")
+    public ApiResponse<Map<String, Object>> search(
+            @RequestParam("q") String q,
+            @RequestParam(required = false) String job,
+            @RequestParam(defaultValue = "5") int topK) {
+        List<Map<String, Object>> items = service.search(q, job, topK);
+        return ApiResponse.ok(Map.of("items", items, "total", items.size()));
     }
 
     @DeleteMapping("/{id}")

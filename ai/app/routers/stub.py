@@ -7,30 +7,6 @@ router = APIRouter(prefix="/ai", dependencies=[Depends(verify_token)])
 FAKE_USAGE = {"tokensIn": 100, "tokensOut": 20, "cost": 0.001}
 
 
-@router.post("/jd/parse")
-def jd_parse(payload: dict):
-    return ok({
-        "title": "Java 后端工程师",
-        "requirements": [
-            {"id": "R1", "text": "熟悉 JVM 内存模型", "type": "must"},
-            {"id": "R2", "text": "有高并发经验", "type": "must"},
-            {"id": "R3", "text": "了解 K8s", "type": "nice"},
-        ],
-    })
-
-
-@router.post("/question/index")
-def question_index(payload: dict):
-    return ok({"indexed": len(payload.get("questions", [])), "failed": 0})
-
-
-@router.post("/question/search")
-def question_search(payload: dict):
-    return ok({"items": [
-        {"id": "q1", "stem": "【假数据】讲讲 Redis 缓存穿透", "score": 0.82}
-    ]})
-
-
 @router.post("/interview/next")
 def interview_next(payload: dict):
     answer = payload.get("lastAnswer", "")

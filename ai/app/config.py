@@ -15,5 +15,11 @@ class Settings(BaseSettings):
     internal_token: str = "dev-token-change-me"
     request_timeout: int = 60
 
+    # 简历解析：规则抽到技能后还要不要模型补学历/项目。关掉能省一次调用
+    resume_llm_enrich: bool = True
+
+    # 题库向量检索的 topK 默认值
+    search_top_k: int = 5
+
 
 settings = Settings()

@@ -93,8 +93,46 @@ def build_fake_docx() -> None:
     print(f"写入 {path}")
 
 
+def build_english_pdf() -> None:
+    """格式不标准（全英文）的简历：规则抽不到技能，用来测模型兜底。"""
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfgen import canvas
+
+    lines = [
+        "ZHANG SAN",
+        "Backend Engineer / Java",
+        "Contact: +86 13900139000  zhang.san@example.com",
+        "",
+        "SUMMARY",
+        "Four years building payment services. Care about correctness and latency.",
+        "",
+        "EXPERIENCE",
+        "Mirror Tech 2023 - now, backend engineer",
+        "- Built an interview service on Spring Boot and MySQL",
+        "- Cut P95 latency from 800ms to 120ms with Redis caching",
+        "",
+        "SKILLS",
+        "Java, Spring Boot, MySQL, Redis, Linux, Docker, Maven",
+        "",
+        "EDUCATION",
+        "Some University, Software Engineering, Bachelor 2021 - 2025",
+    ]
+
+    path = OUT / "sample-resume-en.pdf"
+    c = canvas.Canvas(str(path), pagesize=A4)
+    c.setFont("Helvetica", 11)
+    y = 800
+    for line in lines:
+        c.drawString(50, y, line)
+        y -= 22
+    c.showPage()
+    c.save()
+    print(f"写入 {path}")
+
+
 if __name__ == "__main__":
     build_resume_pdf()
+    build_english_pdf()
     build_blank_pdf()
     build_fake_docx()
     print("测试文件生成完成")
