@@ -14,4 +14,7 @@ public class AiProperties {
     private String baseUrl;
     private String token;
     private int timeoutMs = 90000;
+
+    /** 每题评分用哪几个维度，逗号分隔。维度越少越省钱越快 */
+    private String scoreDimensions = "技术深度,岗位匹配";
 }

@@ -5,8 +5,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mirror.client.AiClient;
 import com.mirror.common.BizException;
+import com.mirror.config.AiProperties;
+import com.mirror.entity.CostLog;
 import com.mirror.entity.InterviewSession;
 import com.mirror.entity.Turn;
+import com.mirror.mapper.CostLogMapper;
 import com.mirror.mapper.InterviewSessionMapper;
 import com.mirror.mapper.TurnMapper;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,7 +30,9 @@ public class InterviewService {
 
     private final InterviewSessionMapper sessionMapper;
     private final TurnMapper turnMapper;
+    private final CostLogMapper costLogMapper;
     private final AiClient ai;
+    private final AiProperties aiProps;
     private final ObjectMapper json = new ObjectMapper();
 
     private static final int MAX_TURNS = 8;
@@ -50,6 +56,7 @@ public class InterviewService {
         String stem = data.path("stem").asText();
         s.setLastQuestion(stem);
         sessionMapper.updateById(s);
+        recordCost(s.getId(), "question", data);
 
         saveTurn(s.getId(), 1, "interviewer", stem,
                 data.path("basedOn").asText(), data.path("dimension").asText(), 0);
@@ -82,6 +89,18 @@ public class InterviewService {
         int seq = s.getTurnCount() * 2 + 2;
         saveTurn(sessionId, seq, "candidate", answer, null, null, s.getDepth());
 
+        // 先给这道题打分，再决定要不要出下一题。评分失败不影响面试继续
+        try {
+            JsonNode scoreData = ai.score(Map.of(
+                    "question", s.getLastQuestion() == null ? "" : s.getLastQuestion(),
+                    "answer", answer,
+                    "dimensions", scoreDimensions()));
+            updateLatestScore(sessionId, (int) Math.round(scoreData.path("total").asDouble(3.0)));
+            recordCost(sessionId, "score", scoreData);
+        } catch (Exception e) {
+            log.warn("评分失败，本题不计分：{}", e.getMessage());
+        }
+
         s.setTurnCount(s.getTurnCount() + 1);
 
         // 结束判断在追问之前：最后一题答完直接结束
@@ -94,6 +113,7 @@ public class InterviewService {
 
         JsonNode data = ai.nextQuestion(
                 buildRequest(s, s.getLastQuestion(), answer, s.getDepth()));
+        recordCost(sessionId, "question", data);
 
         boolean follow = "follow_up".equals(data.path("type").asText());
         String stem = data.path("stem").asText();
@@ -179,5 +199,66 @@ public class InterviewService {
         t.setDepth(depth);
         t.setCreatedAt(LocalDateTime.now());
         turnMapper.insert(t);
+    }
+
+    /** 评分维度来自配置，默认两维（四维双评一场要六十多次调用，太贵） */
+    private List<String> scoreDimensions() {
+        return Arrays.stream(aiProps.getScoreDimensions().split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
+    }
+
+    /** 把分数写到“刚答的那道题”上：最后一条 interviewer 记录。 */
+    private void updateLatestScore(String sessionId, int score) {
+        Turn last = turnMapper.selectOne(new LambdaQueryWrapper<Turn>()
+                .eq(Turn::getSessionId, sessionId)
+                .eq(Turn::getRole, "interviewer")
+                .orderByDesc(Turn::getSeq)
+                .last("LIMIT 1"));
+
+        if (last != null) {
+            last.setScore(score);
+            turnMapper.updateById(last);
+        }
+    }
+
+    private void recordCost(String sessionId, String scene, JsonNode data) {
+        JsonNode usage = data.path("usage");
+        if (usage.isMissingNode()) {
+            return;
+        }
+
+        try {
+            CostLog log = new CostLog();
+            log.setSessionId(sessionId);
+            log.setScene(scene);
+            log.setTokensIn(usage.path("tokensIn").asInt());
+            log.setTokensOut(usage.path("tokensOut").asInt());
+            log.setCost(usage.path("cost").asDouble());
+            log.setCreatedAt(LocalDateTime.now());
+            costLogMapper.insert(log);
+        } catch (Exception e) {
+            log.warn("成本记录失败 scene={} {}", scene, e.getMessage());
+        }
+    }
+
+    /** 成本统计：总花费、总 token、场次、单场均值 */
+    public Map<String, Object> stats() {
+        List<CostLog> logs = costLogMapper.selectList(null);
+
+        double totalCost = logs.stream().mapToDouble(l -> l.getCost() == null ? 0 : l.getCost()).sum();
+        int totalIn = logs.stream().mapToInt(l -> l.getTokensIn() == null ? 0 : l.getTokensIn()).sum();
+        int totalOut = logs.stream().mapToInt(l -> l.getTokensOut() == null ? 0 : l.getTokensOut()).sum();
+        long sessions = logs.stream().map(CostLog::getSessionId).filter(s -> s != null).distinct().count();
+
+        Map<String, Object> out = new HashMap<>();
+        out.put("totalCost", Math.round(totalCost * 10000) / 10000.0);
+        out.put("totalTokensIn", totalIn);
+        out.put("totalTokensOut", totalOut);
+        out.put("sessions", sessions);
+        out.put("avgCostPerSession", sessions == 0 ? 0
+                : Math.round(totalCost / sessions * 10000) / 10000.0);
+        return out;
     }
 }
