@@ -12,6 +12,7 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.multipart.MultipartFile;
@@ -64,12 +65,28 @@ public class AiClient {
         } catch (ResourceAccessException e) {
             log.error("[{}] AI 服务无响应 {}", traceId, path);
             throw new AiUnavailableException("AI 服务无响应");
+        } catch (HttpClientErrorException e) {
+            // 4xx 是 Python 主动拒绝（文件类型不对、内容不合格），这是业务错误，要原样给前端
+            throw new BizException(4002, detailOf(e.getResponseBodyAsString()));
         } catch (BizException e) {
             throw e;
         } catch (Exception e) {
             log.error("[{}] AI 调用异常 {}", traceId, path, e);
             throw new AiUnavailableException("AI 调用失败");
         }
+    }
+
+    /** FastAPI 的报错体是 {"detail": "..."}，取出来当业务提示。 */
+    private String detailOf(String body) {
+        try {
+            String detail = json.readTree(body).path("detail").asText();
+            if (!detail.isBlank()) {
+                return detail;
+            }
+        } catch (Exception ignore) {
+            // 不是 JSON 就走兜底文案
+        }
+        return "AI 服务拒绝了这次请求";
     }
 
     public JsonNode nextQuestion(Object req) {
@@ -127,6 +144,8 @@ public class AiClient {
         } catch (ResourceAccessException e) {
             log.error("[{}] AI 服务无响应 /ai/resume/parse", traceId);
             throw new AiUnavailableException("AI 服务无响应");
+        } catch (HttpClientErrorException e) {
+            throw new BizException(4002, detailOf(e.getResponseBodyAsString()));
         } catch (BizException e) {
             throw e;
         } catch (Exception e) {

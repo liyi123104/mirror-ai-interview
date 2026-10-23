@@ -1,24 +1,10 @@
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends
 
 from app.common import ok, verify_token
 
 router = APIRouter(prefix="/ai", dependencies=[Depends(verify_token)])
 
 FAKE_USAGE = {"tokensIn": 100, "tokensOut": 20, "cost": 0.001}
-
-
-@router.post("/resume/parse")
-async def resume_parse(file: UploadFile = File(...)):
-    return ok({
-        "name": "张三",
-        "phone": "13800138000",
-        "email": "zhang@example.com",
-        "education": "本科 某某大学 计算机",
-        "projects": [{"name": "订单系统", "tech": ["Redis", "MySQL"], "desc": "高并发下单"}],
-        "skills": ["Java", "MySQL", "Redis"],
-        "needsReview": False,
-        "usage": FAKE_USAGE,
-    })
 
 
 @router.post("/jd/parse")
