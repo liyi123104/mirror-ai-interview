@@ -51,18 +51,30 @@
 
 ## 快速开始
 
-### 方式零：一条命令（推荐）
+### 方式零：双击两个 bat（推荐）
+
+| 双击 | 作用 | 结果 |
+|---|---|---|
+| **`start.bat`** | 检查 MySQL → 起 AI（守护模式）→ 起 Java → 起前端 → 逐个健康检查 | 打印入口地址，窗口里每 15 秒一行状态 |
+| **`stop.bat`** | 按启动记录杀进程树，再按命令行/端口兜底 | 确认 8001/8080/5174–5185 全部放开 |
+
+细节：
+
+- 前端固定从 **5180** 起，避开本机被占用的 5173；脚本会从 Vite 输出里读真实地址。
+- 关闭 start 的窗口 **不等于** 停服务（子进程会留着），要停就双击 `stop.bat` 或按 `Ctrl+C`。
+- `stop.bat` 不碰 5173 及以下端口，不会误杀别的项目。
+- 启动记录在 `logs\run.json`，删了也能靠命令行识别兜底。
+
+命令行等价写法：
 
 ```powershell
 cd "E:\AI Full-Stack Engineer\mirror"
-powershell -ExecutionPolicy Bypass -File scripts\start-all.ps1 -WithWeb
+powershell -ExecutionPolicy Bypass -File scripts\start-all.ps1 -WithWeb   # 起
+powershell -ExecutionPolicy Bypass -File scripts\stop-all.ps1             # 停
 ```
 
-它会依次检查 MySQL、拉起 AI（守护模式，挂了自动重启）、拉起 Java、拉起前端，
-全部健康检查通过后打印入口地址（前端固定从 **5180** 起，避开本机被占用的 5173）。
-按 `Ctrl+C` 一起停掉。日志在 `logs\` 下。
-
 参数：`-WithWeb` 连前端一起起；`-Fresh` 先把占用 8001/8080 的进程杀掉。
+日志都在 `logs\` 下（`ai.watch.*` / `server.out.log` / `web.out.log`）。
 
 ### 方式一：本机三终端（手动）
 

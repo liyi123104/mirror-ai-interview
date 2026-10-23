@@ -13,8 +13,9 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$root   = Split-Path -Parent $PSScriptRoot
-$logDir = Join-Path $root "logs"
+$root      = Split-Path -Parent $PSScriptRoot
+$logDir    = Join-Path $root "logs"
+$stateFile = Join-Path $logDir "run.json"
 $aiDir  = Join-Path $root "ai"
 $srvDir = Join-Path $root "server"
 $webDir = Join-Path $root "web"
@@ -173,25 +174,49 @@ elseif (-not $WithWeb) {
     Say "    （终端里 Local: 那一行就是入口；5180 被占会自动顺延）"
 }
 Say ("  日志目录  : {0}" -f $logDir)
-Say "  按 Ctrl+C 停止。" "Yellow"
-Say "  停不干净就：powershell -ExecutionPolicy Bypass -File scripts\stop-all.ps1 8001 8080 5180" "Yellow"
+Say "  按 Ctrl+C 停止，或双击 stop.bat。" "Yellow"
 Say "==========================================" "Cyan"
+
+# 把这次启动的进程记下来，stop-all.ps1 靠它精确杀进程树
+$state = [ordered]@{
+    startedAt  = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+    aiWatchPid = if ($aiProc)  { $aiProc.Id }  else { 0 }
+    javaPid    = if ($javaProc) { $javaProc.Id } else { 0 }
+    webPid     = if ($webProc) { $webProc.Id } else { 0 }
+    webUrl     = $webUrl
+}
+try {
+    $state | ConvertTo-Json | Set-Content -Path $stateFile -Encoding UTF8
+    Say ("  启动记录  : {0}" -f $stateFile) "DarkGray"
+} catch {
+    Say "  启动记录写入失败（不影响服务运行）" "Yellow"
+}
 
 # ---------- 6. 前台守候 ----------
 try {
+    $downStreak = 0
     while ($true) {
         Start-Sleep -Seconds 15
         $items = @()
+        $down = 0
         try {
             $a = Invoke-WebRequest "http://127.0.0.1:8001/ai/health" -UseBasicParsing -TimeoutSec 3
             $items += if ($a.StatusCode -eq 200) { "AI ok" } else { "AI ?" }
-        } catch { $items += "AI 挂了" }
+        } catch { $items += "AI 挂了"; $down++ }
         try {
             $j = Invoke-WebRequest "http://localhost:8080/api/health" -UseBasicParsing -TimeoutSec 3
             $items += if ($j.StatusCode -eq 200) { "Java ok" } else { "Java ?" }
-        } catch { $items += "Java 挂了" }
+        } catch { $items += "Java 挂了"; $down++ }
 
         Say ("[{0}] {1}" -f (Get-Date -Format "HH:mm:ss"), ($items -join " | ")) "DarkGray"
+
+        # 连续一分钟两个服务都不在：多半是被 stop.bat 关了，别在这里空转
+        if ($down -ge 2) { $downStreak++ } else { $downStreak = 0 }
+        if ($downStreak -ge 4) {
+            Say ""
+            Say "两个服务连续 1 分钟都不在，可能已经被 stop.bat 关掉了。本窗口退出。" "Yellow"
+            break
+        }
     }
 } finally {
     Say ""
@@ -214,5 +239,13 @@ try {
             Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
         }
     }
+
+    # 守护进程可能又拉起了 uvicorn，再扫一遍 8001
+    $conn = Get-NetTCPConnection -LocalPort 8001 -State Listen -ErrorAction SilentlyContinue
+    foreach ($procId in ($conn.OwningProcess | Select-Object -Unique)) {
+        Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
+    }
+
+    Remove-Item $stateFile -Force -ErrorAction SilentlyContinue
     Say "已停止。" "Green"
 }
