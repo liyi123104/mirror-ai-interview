@@ -103,7 +103,14 @@ async function start() {
     })
 
     sessionStorage.setItem('resume', JSON.stringify(resume.value))
-    router.push({ path: '/interview', query: { id: session.sessionId, first: session.stem } })
+    router.push({
+      path: '/interview',
+      query: {
+        id: session.sessionId,
+        first: session.stem,
+        basedOn: session.basedOn || '',
+      },
+    })
   } catch (e) {
     ElMessage.error(e.message)
   } finally {
