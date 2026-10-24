@@ -2,6 +2,22 @@
 
 上传简历、选岗位，AI 按岗位要求逐题追问，结束后给出四维评分、逐题差距和参考讲法。
 
+## 效果截图
+
+**面试页**：追问直接引用了候选人的原话（「命中率95%」→「这5%请求怎么处理」），并标注考察依据 R2。
+
+![面试页](docs/screenshot-interview.png)
+
+**报告页**：四维雷达（来自每道题的逐题维度分）+ 逐题差距与参考讲法 + Markdown 导出。
+
+![报告页](docs/screenshot-report.png)
+
+**登录页**（注册即登录，JWT 存在 localStorage）：
+
+<img src="docs/screenshot-login.png" width="420" alt="登录页" />
+
+## 架构
+
 ![架构图](docs/architecture.png)
 
 ## 为什么做这个

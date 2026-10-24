@@ -96,9 +96,9 @@ Java / Spring Boot / MyBatis-Plus / MySQL / Python / FastAPI / 提示词工程 /
 
 ### 今天（约 1 小时）
 
-- [ ] **截图 3 张**：登录页、面试页（能看到追问气泡 + 考察依据）、报告页（雷达图 + 逐题）
+- [x] **截图 3 张**：登录页、面试页（能看到追问气泡 + 考察依据）、报告页（雷达图 + 逐题）
       存成 `docs/screenshot-login.png`、`docs/screenshot-interview.png`、`docs/screenshot-report.png`
-- [ ] 把截图塞进 README 首屏（架构图下面），`git commit`
+- [x] 截图已放进 README 首屏（`scripts/capture-screenshots.mjs` 可重新生成）
 - [ ] 简历条目替换成上面版本 A，数字逐个对照第二节
 
 ### 本周（每天 30 分钟）
