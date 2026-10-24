@@ -21,7 +21,8 @@ logs/
 .env
 
 # 数据
-data/
+# 只忽略根目录的 data/（docker 的 mysql 卷）；ai/data、ai/tests/data 是评测集和测试样本，必须进仓库
+/data/
 uploads/*
 !uploads/.gitkeep
 # 数据库备份

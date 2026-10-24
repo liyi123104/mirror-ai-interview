@@ -67,7 +67,35 @@
 
 ## 快速开始
 
-### 方式零：双击两个 bat（推荐）
+### 前置：clone 之后的第一次准备（只做一次）
+
+需要 JDK 21、Python 3.12+、Node 20+、MySQL 8。Windows 用下面的命令；Linux/macOS 把
+`.\.venv\Scripts\...` 换成 `.venv/bin/...`，脚本类（`start.bat`）只有 Windows 版，其余手动跑。
+
+```powershell
+git clone https://github.com/liyi123104/mirror-ai-interview.git
+cd mirror-ai-interview
+copy .env.example .env        # 打开填 DEEPSEEK_API_KEY（不填就只能走规则抽取，出题会失败）
+
+# Python 依赖（仓库里没有 .venv）
+cd ai
+python -m venv .venv
+.\.venv\Scripts\pip install -r requirements.txt
+cd ..
+
+# 前端依赖
+cd web
+npm install
+cd ..
+
+# 数据库（第一次要建库建用户再导表结构）
+powershell -ExecutionPolicy Bypass -File scripts\init-db.ps1 -RootPassword 你的root密码
+```
+
+> 向量检索依赖本机 Ollama 的 `bge-m3`（`ollama pull bge-m3`）。
+> **没有 Ollama 也能跑**：索引建不起来，出题时不带题库参考，其余功能不受影响。
+
+### 方式零：双击两个 bat（推荐，Windows）
 
 | 双击 | 作用 | 结果 |
 |---|---|---|
@@ -85,7 +113,7 @@
 命令行等价写法：
 
 ```powershell
-cd "E:\AI Full-Stack Engineer\mirror"
+cd mirror-ai-interview
 powershell -ExecutionPolicy Bypass -File scripts\start-all.ps1 -WithWeb   # 起
 powershell -ExecutionPolicy Bypass -File scripts\stop-all.ps1             # 停
 ```
