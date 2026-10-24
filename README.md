@@ -2,6 +2,8 @@
 
 上传简历、选岗位，AI 按岗位要求逐题追问，结束后给出四维评分、逐题差距和参考讲法。
 
+[在线介绍页](https://liyi123104.github.io/mirror-ai-interview/) · [接口契约](docs/ai-contract.md) · [评分实验记录](docs/eval-log.md) · [测试用例](docs/test-cases.md)
+
 ## 效果截图
 
 **面试页**：追问直接引用了候选人的原话（「命中率95%」→「这5%请求怎么处理」），并标注考察依据 R2。

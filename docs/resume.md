@@ -105,19 +105,21 @@ Java / Spring Boot / MyBatis-Plus / MySQL / Python / FastAPI / 提示词工程 /
 
 - [ ] **录 20 段 30 秒口述**（`docs/self-test.md` 的 20 题），先录第 18/19/20 题
       ——这三题最能区分人：换成纯 Java 会损失什么 / 最大缺陷 / 重做会改什么
-- [ ] 推 GitHub（命令见下），确认 `.env` 没上传
+- [x] 推 GitHub：<https://github.com/liyi123104/mirror-ai-interview>
+- [x] 在线介绍页：<https://liyi123104.github.io/mirror-ai-interview/>
 
 ### 投递前
 
 - [ ] 3 分钟演示视频（可选，但作品集有视频通过率更高）
 - [ ] 能背出第二节的数字，且知道每个数字在哪个文件里
+- [ ] 简历里放两个链接：源码仓库 + 在线介绍页（HR 一般点介绍页，技术面会点仓库）
 
-### 推 GitHub 的命令
+### 推 GitHub 的命令（已执行过，留作换仓库时参考）
 
 ```powershell
 cd "E:\AI Full-Stack Engineer\mirror"
 # 先在 GitHub 上建一个空仓库（不要初始化 README），然后：
-git remote add origin https://github.com/<你的用户名>/mirror.git
+git remote add origin https://github.com/<用户名>/<仓库>.git
 git branch -M main
 git push -u origin main
 git push --tags
@@ -125,6 +127,9 @@ git push --tags
 # 确认敏感文件没上去（应该没有输出）
 git ls-files | findstr /I ".env"
 ```
+
+> 本机直连 github.com 偶尔不通，已给这个仓库单独配了代理：
+> `git config http.proxy http://127.0.0.1:7890`。关了 FlClash 记得 `git config --unset http.proxy`。
 
 ## 七、这个项目在简历里的位置
 
