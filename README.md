@@ -14,7 +14,7 @@
 
 **登录页**（注册即登录，JWT 存在 localStorage）：
 
-<img src="docs/screenshot-login.png" width="420" alt="登录页" />
+<img src="docs/screenshot-login-card.png" width="420" alt="登录页" />
 
 ## 架构
 

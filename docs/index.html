@@ -80,6 +80,7 @@
 
   .shots { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .shot { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+  .shot a, .arch a { display: block; cursor: zoom-in; }
   .shot img { display: block; width: 100%; height: auto; border-bottom: 1px solid var(--line); }
   .shot .cap { padding: 12px 14px; font-size: 13px; color: var(--muted); }
   .shot.wide { grid-column: 1 / -1; }
@@ -170,15 +171,15 @@
     <p class="sub">截图由 <code>scripts/capture-screenshots.mjs</code> 驱动无头浏览器自动生成，数据来自一场真实面试。</p>
     <div class="shots">
       <div class="shot">
-        <img src="screenshot-interview.png" alt="面试页" />
+        <a href="screenshot-interview.png" target="_blank" rel="noopener"><img src="screenshot-interview.png" alt="面试页" /></a>
         <div class="cap"><b>面试页</b>：追问直接引用了原话（「命中率 95%」→「这 5% 请求怎么处理」），并标注考察依据 R2。</div>
       </div>
       <div class="shot">
-        <img src="screenshot-report.png" alt="报告页" />
+        <a href="screenshot-report.png" target="_blank" rel="noopener"><img src="screenshot-report.png" alt="报告页" /></a>
         <div class="cap"><b>报告页</b>：四维雷达（来自每道题的维度分）+ 逐题差距 + 参考讲法 + Markdown 导出。</div>
       </div>
-      <div class="shot" style="max-width:560px;margin:0 auto;">
-        <img src="screenshot-login.png" alt="登录页" />
+      <div class="shot" style="max-width:520px;margin:0 auto;">
+        <a href="screenshot-login-card.png" target="_blank" rel="noopener"><img src="screenshot-login-card.png" alt="登录页" /></a>
         <div class="cap"><b>登录 / 注册</b>：JWT 存 localStorage，刷新不掉登录，未登录自动跳转。</div>
       </div>
     </div>
@@ -190,7 +191,7 @@
     <h2>架构</h2>
     <p class="sub">业务用 Java、AI 用 Python，两侧靠一份内部接口契约 + 内部令牌解耦；AI 服务不连数据库，所以可无状态扩容。</p>
     <div class="arch">
-      <img src="architecture.png" alt="架构图" />
+      <a href="architecture.png" target="_blank" rel="noopener"><img src="architecture.png" alt="架构图" /></a>
     </div>
     <p class="sub" style="margin-top:14px">
       降级链路：Python 挂掉 → Java 秒级返回 5030（不是卡 90 秒）；DeepSeek 超时 → 自动切本地 Ollama；
