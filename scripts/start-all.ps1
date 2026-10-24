@@ -109,7 +109,7 @@ if (Port-Busy $AiPort) {
     Say ("  [SKIP] {0} 已有服务在跑（不是本脚本起的，Ctrl+C 不会停它）" -f $AiPort) "Yellow"
 } else {
     $py = Join-Path $aiDir ".venv\Scripts\python.exe"
-    if (-not (Test-Path $py)) { Say "找不到虚拟环境：$py（先建好 venv）" "Red"; exit 1 }
+    if (-not (Test-Path $py)) { Say "找不到虚拟环境：$py（先建好 venv：python -m venv .venv 然后 pip install -r requirements.txt）" "Red"; exit 1 }
 
     $aiOut = Join-Path $logDir "ai.watch.out.log"
     $aiErr = Join-Path $logDir "ai.watch.err.log"
